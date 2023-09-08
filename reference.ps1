@@ -405,7 +405,113 @@ Get-Command -Module ActiveDirectory -Verb Get -Noun *computer*;
 
 # Repeat with user and group
 Get-Command -Module ActiveDirectory -Verb Get -Noun *user*;
+Get-Command -Module ActiveDirectory -Verb Get -Noun *group*;
+
+# --- Filerting Objects ---
+# Many AD commands use a parameter called Filter
+# Filter is similar to Where-Object command as it filters what each command returns, but Filter is different
+# Filter parameter uses its own syntax and can be difficult to understand, especially with complex filters
+# Filtering AD objects queries to the AD database, so you're essentially writing database queries using fancy pwsh cmds
+
+# For more help on Filter parameter
+Get-Help about_ActiveDirectory_Filter;
+
+# Return all users in domain (may take awhile)
+Get-ADUser -Filter *;
+
+# To find all computer accounts in AD that start with the letter C
+Get-ADComputer -Filter 'Name -like "C*"';
+
+# To find all last names that end with 'son'
+Get-ADComputer -Filter 'Name -like "*son"';
+
+# To find all users that have a last name of Jones
+Get-ADUser -Filter "surName -eq 'Jones'";
+
+# --- Using Search-ADAccount Cmd ---
+# Built-in support fr common filtering scenarioes such as finding all users with an expired password, finding locked-out users, and finding computers that are enabled
+# Returns object type of Microsoft.ActiveDirectory.Management.ADUser
+
+# To see full range of parameters for Search-ADAccount
+Get-Help Search-ADAccount;
+
+# To find all users who haven't used their account in 90 days
+Search-ADAccouunt -AccountInactive -TimeSpan 90.00:00:00 -UsersOnly;
+
+# --- Returning Single Objects ---
+# Sometimes you know the exact AD object you're looking for, so there's no need to use Filter
+# Use -Identity parameter instead
+# -Identity allows you to specify attributes that make an AD object unique, thus returns only a single object
+# Every user account has a unique attribute called samAccountName
+# You could use the -Filter parameter to find all users with a specific samAccountName
+
+# Find all users with a specific samAccountName
+Get-ADUser -Filter "samAccountName -eq 'jjones'";
+
+# Use -Identity for cleaner code
+Get-ADUser -Identity jjones;
+
+# Find user accounts that haven't changed their password in 30 days
+Get-ADUser -Filter * -Properties passwordlastset | Select-Object name,passwordlastset;
+
+# Now that attribute name is acquired, build a filter for it
+$today = Get-Date;
+$30DaysAgo = $today.AddDays(-30);
+Get-ADUser -Filter "passwordlastset -lt '$30DaysAgo'";
+
+# Add Enabled condition to the filter
+Get-ADUser -Filter "Enabled -eq 'True' -and passwordlastset -lt '$30DaysAgo'";
+
+# --- Creating and Changing AD Objects ---
+# Users and Computers
+# To change users and computer accounts, use a Set command
+# Either Set-ADUser or Set-ADComputer
+
+# Let's say an employee named Janes Jones got married and you have to change their last name of their user account
+# Before using -Filter, you need to find attributes and pass to the -Filter parameter
+# One way to find all available attributes stored in AD is with a little .NET
+# Using a schema object, you can find the user class and enumerate all of its attributes
+$schema = [DirectoryServices.ActiveDirectory.ActiveDirectorySchema]::GetCurrentSchema();
+$userClass = $schema.FindClass('user');
+$userClass.GetAllProperties().Name;
+
+# By reviewing the available attribute list, you then find the givenName and surName attribute to use in the -Filter parameter with the Get-ADUser command, finding the user account
+# Next you can pass that object to Set-ADUser
+Get-ADUser -Filter "givenName -eq 'Jane' -and surName -eq 'Jones'" | Set-ADUser -Surname 'Smith';
+Get-ADUser -Filter "givenName -eq 'Jane' -and surName -eq 'Smith'";
+
+# You can also change multiple attributes at once
+Get-ADUser -Filter "givenName -eq 'Jane' -and surname -eq 'Smith'" | Set-ADuser -Department 'HR' -Title Director;
+Get-ADUser -Filter "givenName -eq 'Jane' -and surname -eq 'Smith'" -Properties GivenName,SurName,Department,Title;
+
+# To create a new AD object (user, computer, group)
+New-ADUser -Name $userName;
+New-ADComputer -Name $computerName;
 
 
+# Groups
+# Groups are a container for many AD objects
+# It's still a single container, just like users and computers
+# Querying, creating, and changing groups is the same as users/objects with slight differences
+
+# Create a new group called 'AdamBertramLovers' (-GroupScope could be DomainLocal, Global, or Universal)
+New-ADGroup -Name 'AdamBertramLovers' -Description 'All Adam Bertram lovers in the company' -GroupScope DomainLocal
+
+# You can modify the new group AD object
+Get-ADGroup -Identity AdamBertramLovers | Set-ADGroup -Description 'More Adam Bertram Lovers';
+
+# Main difference between groups and users/computers is that groups contain users and computers
+# When a computer or a user account is contained within a group, the user/computer is a 'member' of that group
+# To modify the groups, you need to use Add-ADGroupMember and Remove-ADGroupMember
+
+# Adding/Removing users (group members) from a group AD object (use -Force parameter to skip check)
+Get-ADGroup -Identity AdamBertramLovers | Add-ADGroupMember -Members 'jjones';
+Get-ADGroup -Identity AdamBertramLovers | Remove-ADGroupMember -Members 'jjones';
+
+# Read the rest of the chapter to see how to:
+# Map data source attributes (read csv/excel files or sql databases)
+# Finding matches in an active directory
+# Change Active Directory Attributes
+# Creating functions to return similar properties
 
 
