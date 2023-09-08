@@ -3,7 +3,16 @@
 # It's entirely used for syntax practice and to generally get used to the language
 # It'll be written only using basic vim (no lsp) so I can learn to write powershell without autocomplete
 
-function TwoSum {
+function Install-Software {
+    param(
+        [string]$Name,
+        [string]$Version
+    )
+    
+}
+
+
+function Get-TwoSum {
 	
 	param(
 		[System.Collections.ArrayList]$nums,
@@ -31,9 +40,8 @@ $userTarget = read-host "Enter a target number: ";
 
 write-host "Two sum solution: ";
 $result = [System.Collections.ArrayList]@();
-$result = TwoSum -nums $nums -target $userTarget;
+$result = Get-TwoSum -nums $nums -target $userTarget;
 write-host "$result";
-
 
 
 
